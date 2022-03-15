@@ -1,44 +1,101 @@
 #!/usr/bin/env bash
 
-tempfile=`mktemp -u /tmp/ipfetch.XXXXXX`
+tmpfile=`mktemp -u /tmp/ipfetch.XXXXXX`
+prog_name="${0##*/}"
 
-if [ "$1" == "-ip" ] >/dev/null 2>&1 ; then
-	wget https://ip.seeip.org/geoip/$2 -O "$tempfile" >/dev/null 2>&1 || exit 1
+print_help(){
+	cat << EOF
+$prog_name: a Neofetch-like tool to lookup IP addresses.
+
+Syntax: $prog_name [options]
+
+Options:
+--ip <IP> 	Specify an IP address (uses your IP if not specified)
+--help|-h 	Show this help
+
+This script is a fork of github.com/trakBan/ipfetch :)
+EOF
+}
+
+while [[ $# -gt 0 ]]
+do
+	case "$1" in
+		-h|--help)
+			print_help
+			exit 0
+			;;
+		--ip)
+			ip="$2"
+			shift 2
+			;;
+		--)
+			shift
+			break
+			;;
+		-*)
+			die "Unknown option: $1" 1
+			;;
+		*)
+			break
+			;;
+	esac
+done
+
+
+if [[ -n "$ip" ]]
+then
+	json="$(curl --silent "https://ip.seeip.org/geoip/$ip")"
+else
+	json="$(curl --silent "https://ip.seeip.org/geoip/")"
 fi
 
-# If no arguments were passed it will default to your own ip
-[ $# -eq 0 ] >/dev/null 2>&1 && wget https://ip.seeip.org/geoip/ -O "$tempfile" >/dev/null 2>&1
+# Alright maybe there's a better and faster way to process this...
+data_list=(
+	"ip"
+	"continent_code"
+	"country"
+	"region"
+	"city"
+	"organization"
+	"timezone"
+	"latitude"
+	"longitude"
+	"asn"
+)
 
-# Replacing spaces with underscores
-sed -i 's/ /_/g' "$tempfile"
-sed -i 's/\\//g' "$tempfile"
+jq_cmd=".["
+for var in "${data_list[@]}"
+do
+	jq_cmd+="\"$var\","
+done
+jq_cmd="${jq_cmd%*,}] | tostring"
 
-# Uses sed to extract json data
-ip=`sed -nr 's/.+"ip":"([0-9\.]+).+/\1/p' "$tempfile"`
-continent=`sed -nr 's/.+"continent_code":"([^"]*).+/\1/p' "$tempfile"`
-city=`sed -nr 's/.+"city":"([^"]*).+/\1/p' "$tempfile"`
-isp=`sed -nr 's/.+"organization":"([^"]*).+/\1/p' "$tempfile"`
-country=`sed -nr 's/.+"country":"([^"]*).+/\1/p' "$tempfile"`
-timezone=`sed -nr 's/.+"timezone":"([^"]*).+/\1/p' "$tempfile"`
-latitude=`sed -nr 's/.+"latitude":([^,]*).+/\1/p' "$tempfile"`
-longitude=`sed -nr 's/.+"longitude":([^,]*).+/\1/p' "$tempfile"`
-asn=`sed -nr 's/.+"asn":([^,]*).+/\1/p' "$tempfile"`
-region=`sed -nr 's/.+"region":"([^"]*).+/\1/p' "$tempfile"`
+eval "data_tmp=($(jq "$jq_cmd" <<< "$json"))"
 
-rm "$tempfile"
+declare -A data
+for (( i=0; i < ${#data_list[@]}; i++ ))
+do
+	[[ "${data_tmp[$i]}" == "null" ]] && data_tmp[$i]='(unknown)'
+	eval "data+=([\"${data_list[$i]}\"]=\"${data_tmp[$i]}\")"
+done
+
+country_dir="/usr/share/ipfetch"
+[[ -d "$country_dir" ]] || country_dir="flags"
 
 # All of those \033 you see are cursor positions. Here is a good tutorial for it: https://thoughtsordiscoveries.wordpress.com/2017/04/26/set-and-read-cursor-position-in-terminal-windows-and-linux/
-echo -e "\n`cat /usr/share/ipfetch/$country`\
-	\033[s \033[9A Ip: $ip\
-	\033[u\033[8A  Continent: $continent\
-	\033[u\033[7A  Country: $country\
-	\033[u\033[6A  Region: $region\
-	\033[u\033[5A  City: $city\
-	\033[u\033[4A  ISP: $isp\
-	\033[u\033[3A  Timezone: $timezone\
-	\033[u\033[2A  Latitude: $latitude\
-	\033[u\033[1A  Longitude: $longitude\
-	\033[u  ASN: $asn\
+
+style_bold='\e[1;1m'
+style_reset='\e[0;0m'
+echo -e "\n$(< $country_dir/${data[country]})\
+	\033[s \033[9A ${style_bold}Ip:${style_reset} ${data[ip]}\
+	\033[u\033[8A  ${style_bold}Continent:${style_reset} ${data[continent_code]}\
+	\033[u\033[7A  ${style_bold}Country:${style_reset} ${data[country]}\
+	\033[u\033[6A  ${style_bold}Region:${style_reset} ${data[region]}\
+	\033[u\033[5A  ${style_bold}City:${style_reset} ${data[city]}\
+	\033[u\033[4A  ${style_bold}ISP:${style_reset} ${data[organization]}\
+	\033[u\033[3A  ${style_bold}Timezone:${style_reset} ${data[timezone]}\
+	\033[u\033[2A  ${style_bold}Latitude:${style_reset} ${data[latitude]}\
+	\033[u\033[1A  ${style_bold}Longitude:${style_reset} ${data[longitude]}\
+	\033[u  ${style_bold}ASN:${style_reset} ${data[asn]}\
 	\033[u \033[10A -------------------- \
 	\033[u \n"
-
