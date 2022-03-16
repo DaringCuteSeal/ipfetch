@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
 
-tmpfile=`mktemp -u /tmp/ipfetch.XXXXXX`
 prog_name="${0##*/}"
 
 print_help(){
@@ -86,7 +85,7 @@ country_dir="/usr/share/ipfetch"
 
 style_bold='\e[1;1m'
 style_reset='\e[0;0m'
-echo -e "\n$(< $country_dir/${data[country]})\
+echo -e "\n$(<"$country_dir/${data[country]}")\
 	\033[s \033[9A ${style_bold}Ip:${style_reset} ${data[ip]}\
 	\033[u\033[8A  ${style_bold}Continent:${style_reset} ${data[continent_code]}\
 	\033[u\033[7A  ${style_bold}Country:${style_reset} ${data[country]}\
