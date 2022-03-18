@@ -12,7 +12,7 @@ This script depends on these programs (you might need to install them first):
 - [jq](https://stedolan.github.io/jq/)
 - [curl](https://curl.haxx.se)
 
-```
+```bash
 git clone https://github.com/DaringCuteSeal/ipfetch.git
 cd ipfetch
 # You will need sudo
@@ -23,6 +23,6 @@ sudo sh setup.sh
 
 # Usage
 ```
---ip \<ip address\> - This will lookup the ip address you have chosen
+--ip <ip address> - This will lookup the ip address you have chosen
 -h|--help - This will display usage
 ```
