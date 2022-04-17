@@ -79,7 +79,7 @@ do
 	eval "data+=([\"${data_list[$i]}\"]=\"${data_tmp[$i]}\")"
 done
 
-country_dir="/usr/share/ipfetch"
+country_dir="/usr/share/ipfetch/flags"
 [[ -d "$country_dir" ]] || country_dir="flags"
 
 # All of those \033 you see are cursor positions. Here is a good tutorial for it: https://thoughtsordiscoveries.wordpress.com/2017/04/26/set-and-read-cursor-position-in-terminal-windows-and-linux/
